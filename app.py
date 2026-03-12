@@ -290,11 +290,15 @@ else:
     display_rows = []
     for _, row in df.iterrows():
         # Force breakdown
+        ss  = row['ש"ש']
+        sol = row["חיילים"]
+        mov = row["תנועות נוער"]
+        mec = row["מכינה"]
         parts = []
-        if row['ש"ש']:        parts.append(f'ש"ש:{row["ש"ש"]}')
-        if row["חיילים"]:     parts.append(f'חיילים:{row["חיילים"]}')
-        if row["תנועות נוער"]: parts.append(f'נוע׳:{row["תנועות נוער"]}')
-        if row["מכינה"]:      parts.append(f'מכינה:{row["מכינה"]}')
+        if ss:  parts.append(f'ש"ש:{ss}')
+        if sol: parts.append(f'חיילים:{sol}')
+        if mov: parts.append(f'נוע׳:{mov}')
+        if mec: parts.append(f'מכינה:{mec}')
         force_detail = " | ".join(parts) if parts else "—"
 
         display_rows.append({
