@@ -286,14 +286,29 @@ st.subheader(f"📋 נתוני קיבוצים ({len(df)} מתוך {len(df_raw)})
 if len(df) == 0:
     st.warning("לא נמצאו קיבוצים התואמים את הסינון")
 else:
-    # Build display dataframe
-    display_rows = []
+    # Build RTL HTML table (st.dataframe ignores direction CSS)
+    TH = "padding:10px 12px; font-weight:600; color:#555; text-align:right; border-bottom:2px solid #dee2e6; background:#f8f9fa; white-space:nowrap;"
+    TD = "padding:9px 12px; text-align:right; border-bottom:1px solid #f0f0f0;"
+
+    headers = ["קיבוץ", "סטטוס גיל רך", "יסודי", "נוער", 'סה"כ תלמידים',
+               'כוח עזר סה"כ', "פירוט כוח עזר", "סטודיו פתוח", "נוער בסיכון"]
+
+    html = f'<div style="direction:rtl; overflow-x:auto; font-family:Segoe UI,Arial,sans-serif; font-size:13px;">'
+    html += '<table style="width:100%; border-collapse:collapse;">'
+    html += "<thead><tr>" + "".join(f'<th style="{TH}">{h}</th>' for h in headers) + "</tr></thead><tbody>"
+
     for _, row in df.iterrows():
-        # Force breakdown
-        ss  = row['ש"ש']
-        sol = row["חיילים"]
-        mov = row["תנועות נוער"]
-        mec = row["מכינה"]
+        status   = row["סטטוס"]
+        row_bg   = {"green": "#f0faf4", "yellow": "#fffde7", "red": "#fdf0ef"}.get(status, "white")
+        s_bg     = {"green": "#d5f5e3", "yellow": "#fef9e7", "red": "#fdedec"}.get(status, "#eee")
+        s_color  = {"green": "#1a7a44", "yellow": "#9a7e00", "red": "#b03a2e"}.get(status, "#333")
+        s_dot    = {"green": "#27ae60", "yellow": "#f1c40f", "red": "#e74c3c"}.get(status, "#999")
+        s_label  = STATUS_LABEL.get(status, status)
+
+        ss  = int(row['ש"ש'])
+        sol = int(row["חיילים"])
+        mov = int(row["תנועות נוער"])
+        mec = int(row["מכינה"])
         parts = []
         if ss:  parts.append(f'ש"ש:{ss}')
         if sol: parts.append(f'חיילים:{sol}')
@@ -301,28 +316,37 @@ else:
         if mec: parts.append(f'מכינה:{mec}')
         force_detail = " | ".join(parts) if parts else "—"
 
-        display_rows.append({
-            "קיבוץ":            row["קיבוץ"],
-            "סטטוס":            STATUS_LABEL[row["סטטוס"]],
-            "יסודי":            row["יסודי"] or "—",
-            "נוער":             row["נוער"] or "—",
-            'סה"כ תלמידים':    row['סה"כ תלמידים'] or "—",
-            'כוח עזר סה"כ':    row['כוח עזר סה"כ'],
-            "פירוט כוח עזר":   force_detail,
-            "סטודיו פתוח":     "✅ כן" if row["סטודיו פתוח"] else "❌ לא",
-            "נוער בסיכון":     row["נוער בסיכון"] if row["נוער בסיכון"] > 0 else "—",
-        })
+        at_risk   = int(row["נוער בסיכון"])
+        r_color   = "#e74c3c" if at_risk >= 50 else "#e67e22" if at_risk >= 10 else "#27ae60" if at_risk > 0 else "#bbb"
+        r_display = str(at_risk) if at_risk > 0 else "—"
+        studio    = "✅ כן" if row["סטודיו פתוח"] else "❌ לא"
+        total_f   = ss + sol + mov + mec
+        grand     = row['סה"כ תלמידים']
 
-    display_df = pd.DataFrame(display_rows)
+        badge = (f'<span style="background:{s_bg};color:{s_color};padding:3px 9px;border-radius:12px;'
+                 f'font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:5px;">'
+                 f'<span style="width:7px;height:7px;border-radius:50%;background:{s_dot};display:inline-block;"></span>'
+                 f'{s_label}</span>')
 
-    # Color rows by status
-    def style_row(row_series):
-        status_val = df.iloc[row_series.name]["סטטוס"]
-        bg = {"green": "#f0faf4", "yellow": "#fffde7", "red": "#fdf0ef"}.get(status_val, "")
-        return [f"background-color: {bg}"] * len(row_series)
+        risk_cell = f'<span style="font-weight:700;color:{r_color};">{r_display}</span>'
 
-    styled = display_df.style.apply(style_row, axis=1)
-    st.dataframe(styled, use_container_width=True, hide_index=True, height=600)
+        cells = [
+            f'<strong>{row["קיבוץ"]}</strong>',
+            badge,
+            str(row["יסודי"]) if row["יסודי"] else "—",
+            str(row["נוער"])   if row["נוער"]   else "—",
+            f'<strong>{grand}</strong>' if grand else "—",
+            f'<strong style="font-size:15px">{total_f}</strong>',
+            f'<span style="font-size:11px;color:#888;">{force_detail}</span>',
+            studio,
+            risk_cell,
+        ]
+        html += f'<tr style="background:{row_bg};">'
+        html += "".join(f'<td style="{TD}">{c}</td>' for c in cells)
+        html += "</tr>"
+
+    html += "</tbody></table></div>"
+    st.markdown(html, unsafe_allow_html=True)
 
 
 # ── FORCE DETAIL SECTION ─────────────────────────────────────
